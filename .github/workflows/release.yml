@@ -1,0 +1,65 @@
+name: Release
+
+# Runs only when a tag matching v1.0.0, v2.3.1, etc. is pushed — not on every
+# push to main. See the "commands to run" section for how to create that tag.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Lets the workflow create a GitHub Release and upload assets to it.
+# This must ALSO be allowed at the repo level — see the permissions
+# section below; a repo-level setting can override this and cause a
+# 403 even though it's declared correctly here.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Universal binary covers both Apple Silicon and Intel Macs in one
+          # .dmg — only meaningful on macOS, harmless to declare on Windows.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust dependency cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Lyricly ${{ github.ref_name }}"
+          releaseBody: "See the assets below to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
