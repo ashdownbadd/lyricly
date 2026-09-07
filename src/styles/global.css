@@ -1,0 +1,190 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { width: 100%; height: 100%; background: transparent; overflow: hidden; font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif; user-select: none; }
+#root { display: flex; }
+button { font-family: inherit; cursor: pointer; border: none; outline: none; background: none; }
+button:disabled { cursor: default; opacity: 0.45; }
+
+:root {
+  --sp-black: #0a0a0a;
+  --sp-charcoal: #161616;
+  --sp-charcoal-2: #1f1f1f;
+  --sp-line: rgba(255, 255, 255, 0.08);
+  --sp-green: #1DB954;
+  --sp-green-hover: #1ED760;
+  --sp-green-ink: #04140b;
+  --sp-white: #ffffff;
+  --sp-text-2: rgba(255, 255, 255, 0.68);
+  --sp-text-3: rgba(255, 255, 255, 0.42);
+  --sp-danger: #f15e6c;
+  --sp-danger-bg: rgba(241, 94, 108, 0.12);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Overlay: frosted-glass "floating widget" chrome                        */
+/* The tint/opacity/blur themselves stay fully user-controlled (set inline */
+/* from settings); this layer adds the border + inner light that actually */
+/* reads as glass rather than a plain blurred rectangle.                  */
+/* ---------------------------------------------------------------------- */
+.overlay-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 -12px 24px -18px rgba(0, 0, 0, 0.55);
+}
+.overlay-root, .overlay-root * { -webkit-user-select: none; user-select: none; }
+
+/* A soft sheen across the top third — the detail that sells "glass" rather
+   than "dark rounded box with blur applied". Purely decorative, so it must
+   never intercept hit-testing for the selective click-through system. */
+.overlay-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 42%);
+  pointer-events: none;
+}
+
+.settings-button { position: absolute; top: 8px; right: 10px; z-index: 20; color: #fff; opacity: 0.5; font-size: 15px; padding: 5px; transition: opacity 160ms ease, transform 160ms ease; }
+.settings-button:hover { opacity: 1; transform: rotate(25deg); }
+
+.minimize-button { position: absolute; top: 8px; right: 36px; z-index: 20; color: #fff; opacity: 0.5; padding: 5px; transition: opacity 160ms ease; }
+.minimize-button:hover { opacity: 1; }
+
+/* Three-dot drag handle. Sized and contrasted deliberately: too small/faint
+   and three dots visually blur into what reads as a short line, especially
+   sitting on top of a blurred glass background. */
+.drag-handle { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 20; width: 40px; height: 16px; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+.drag-handle-dots { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.drag-handle-dots span { display: block; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); transition: background 160ms ease, transform 160ms ease; }
+.drag-handle:hover .drag-handle-dots span { background: rgba(255, 255, 255, 0.95); transform: scale(1.15); }
+
+.lyric-measure, .lyric-layout-measure { position: fixed; left: -10000px; top: -10000px; visibility: hidden; pointer-events: none; }
+.lyric-measure { white-space: nowrap; font-weight: 700; line-height: 1.5; }
+.lyric-measure span { display: block; width: max-content; }
+.lyric-layout-measure { box-sizing: border-box; display: flex; flex-direction: column; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.lyrics-stage { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow: hidden; pointer-events: none; }
+.lyric-line { width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1), font-size 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+.lyric-line--active { font-weight: 700; opacity: 1; }
+.lyric-line--secondary { font-weight: 400; opacity: 0.4; }
+.lyric-line--placeholder { flex: 0 0 auto; }
+.plain-lyrics { width: 100%; height: 100%; padding: 12px 20px; display: flex; align-items: center; justify-content: center; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; pointer-events: none; overflow: auto; }
+.centered-message { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 0 16px; text-align: center; pointer-events: none; font-size: 14px; }
+.centered-message small { opacity: 0.55; font-size: 11px; }
+
+/* ---------------------------------------------------------------------- */
+/* Settings window: Spotify-themed, card-grouped layout                   */
+/* ---------------------------------------------------------------------- */
+.settings-window-root { width: 100%; height: 100vh; min-height: 0; background: var(--sp-black); overflow: hidden; }
+.settings-window-root .settings-panel { width: 100%; height: 100%; min-height: 0; overflow-y: auto; }
+.settings-window-root, .settings-window-root * { user-select: none; }
+
+.settings-panel { padding: 22px 22px 28px; color: var(--sp-white); font-size: 13px; background: var(--sp-black); }
+
+.settings-section {
+  background: var(--sp-charcoal);
+  border: 1px solid var(--sp-line);
+  border-radius: 14px;
+  padding: 16px 16px 18px;
+  margin-bottom: 14px;
+}
+.settings-section h2 {
+  margin-bottom: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sp-text-3);
+}
+
+.settings-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.settings-row:last-child { margin-bottom: 0; }
+.settings-row > span { font-size: 12.5px; color: var(--sp-text-2); }
+
+.settings-range-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.settings-range-label span { font-size: 12.5px; color: var(--sp-text-2); }
+.settings-range-label strong { font-size: 12px; font-weight: 700; color: var(--sp-white); font-variant-numeric: tabular-nums; }
+
+/* Two-tone slider: filled portion green, remainder neutral gray, matching
+   Spotify's own minimal transport/volume sliders. The fill percentage is
+   painted via an inline background gradient set from React (see the Range
+   component), since CSS alone can't read an <input>'s current value. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--sp-charcoal-2);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--sp-white);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: transform 120ms ease;
+}
+input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--sp-white);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+input[type="range"]::-moz-range-track { background: transparent; }
+input[type="range"]::-moz-range-progress { background: var(--sp-green); height: 4px; border-radius: 999px; }
+
+.settings-options { display: flex; gap: 6px; flex-wrap: wrap; }
+.settings-option { padding: 8px 12px; border-radius: 999px; color: var(--sp-white); background: var(--sp-charcoal-2); text-transform: capitalize; font-size: 12px; font-weight: 600; transition: background 120ms ease; }
+.settings-option:hover { background: #2a2a2a; }
+.settings-option.is-active { background: var(--sp-green); color: var(--sp-green-ink); }
+
+.position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 16px; }
+.position-grid .settings-option { display: flex; align-items: center; justify-content: center; border-radius: 8px; padding: 11px 4px; color: var(--sp-text-2); }
+.position-grid .settings-option.is-active { color: var(--sp-green-ink); }
+
+/* Real sliding switch instead of a text on/off pill. */
+.settings-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 4px 0; margin-bottom: 14px; color: var(--sp-white); text-align: left; }
+.settings-toggle:last-child { margin-bottom: 0; }
+.settings-toggle:hover .toggle-pill { background: #333; }
+.settings-toggle span:first-child { font-size: 12.5px; color: var(--sp-text-2); }
+.toggle-pill { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--sp-charcoal-2); transition: background 160ms ease; flex-shrink: 0; }
+.toggle-pill::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--sp-white); transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1); }
+.toggle-pill.is-on { background: var(--sp-green); }
+.toggle-pill.is-on::after { transform: translateX(16px); }
+
+.settings-help, .spotify-status { font-size: 11px; line-height: 1.55; color: var(--sp-text-3); }
+.settings-help { margin-top: 4px; }
+.spotify-actions { display: grid; gap: 8px; margin-top: 12px; }
+.spotify-message { margin-top: 8px; }
+
+.settings-action { width: 100%; padding: 11px 14px; border-radius: 999px; color: var(--sp-white); background: var(--sp-charcoal-2); font-size: 12.5px; font-weight: 700; transition: background 120ms ease, transform 80ms ease; }
+.settings-action:hover { background: #2a2a2a; }
+.settings-action:active { transform: scale(0.98); }
+.settings-action.primary { background: var(--sp-green); color: var(--sp-green-ink); }
+.settings-action.primary:hover { background: var(--sp-green-hover); }
+.settings-action.danger { color: var(--sp-danger); background: var(--sp-danger-bg); }
+.settings-action.danger:hover { background: rgba(241, 94, 108, 0.18); }
+
+.settings-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 4px; }
+.settings-saved { padding: 14px 0 2px; text-align: center; font-size: 10.5px; color: var(--sp-text-3); }
+
+input[type="color"] { width: 44px; height: 28px; padding: 0; border: 1px solid var(--sp-line); border-radius: 8px; background: transparent; cursor: pointer; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
