@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { PhysicalPosition } from "@tauri-apps/api/dpi";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
+import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -166,7 +166,7 @@ function MainApp() {
     let dispose: (() => void) | undefined;
     win.onMoved(async ({ payload }) => {
       try {
-        const monitor = await win.currentMonitor();
+        const monitor = await currentMonitor();
         const size = await win.outerSize();
         if (!monitor) return;
         const x = ((payload.x - monitor.position.x) / Math.max(1, monitor.size.width - size.width)) * 100;
@@ -230,8 +230,8 @@ function MainApp() {
       // above already guarantees that the window is visible even if geometry
       // calculation fails.
       try {
-        await settingsWindow.setSize({ type: "Logical", width: 520, height: 760 });
-        const monitor = await win.currentMonitor();
+        await settingsWindow.setSize(new LogicalSize(520, 760));
+        const monitor = await currentMonitor();
         const settingsSize = await settingsWindow.outerSize();
 
         if (monitor) {
